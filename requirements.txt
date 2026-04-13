@@ -1,1 +1,4 @@
 faster-whisper
+sentencepiece
+torch
+transformers

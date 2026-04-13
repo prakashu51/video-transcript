@@ -1,34 +1,39 @@
-# Video Transcript Generator
+# Video Transcript And Translation Generator
 
-This project extracts audio from a video file and generates a timestamped transcript using `faster-whisper`.
+This project extracts audio from a video file and generates timestamped transcripts with `faster-whisper`.
 
-It now works for any language supported by Whisper, not just Chinese.
+It also supports translated transcript output:
 
-You can:
+- original-language transcript for any Whisper-supported source language
+- English translation using Whisper itself
+- other target languages using a second translation stage with NLLB
 
-- let Whisper auto-detect the language
-- force a specific language such as `zh`, `en`, `hi`, `ja`, `fr`, or `de`
-- watch a live progress bar while transcription runs
-- see transcript lines written into the output file as they are generated
+## Current Pipeline
+
+For an input like `sample.mp4`, the repo works like this:
+
+1. [extract_audio.bat](/d:/TG/whisper/extract_audio.bat) extracts audio to `sample.wav`
+2. [transcribe.py](/d:/TG/whisper/transcribe.py) runs Whisper transcription
+3. if no target language is requested:
+   - it writes `sample.txt`
+4. if target language is `en`:
+   - it writes `sample.txt` for the original transcript
+   - it writes `sample.en.txt` using Whisper `task="translate"`
+5. if target language is something else like `hi` or `fr`:
+   - it writes `sample.txt` for the original transcript
+   - it writes `sample.hi.txt` or `sample.fr.txt` using NLLB translation
 
 ## Features
 
-- extracts mono `16 kHz` WAV audio from video using `ffmpeg`
-- transcribes audio with `faster-whisper`
-- supports any Whisper-supported language
-- defaults to automatic language detection
-- defaults to automatic device selection with CPU fallback
-- writes timestamped transcript output to `.txt`
-- updates the transcript file live during processing
-- shows clear model-loading and transcription status messages
-- shows an approximate progress bar based on WAV duration
-
-## Project Files
-
-- [extract_audio.bat](/d:/TG/whisper/extract_audio.bat): converts input video to a same-name `.wav` file
-- [transcribe.py](/d:/TG/whisper/transcribe.py): runs transcription and writes transcript output
-- [requirements.txt](/d:/TG/whisper/requirements.txt): Python dependency list
-- `sample.mp4`: sample input file
+- same-name WAV generation from video files
+- original transcript generation for any Whisper-supported language
+- automatic language detection
+- optional device selection: `auto`, `cpu`, `cuda`
+- optional English translation through Whisper
+- optional non-English translation through NLLB
+- live transcript writing while processing
+- periodic status logging during long runs
+- timestamped transcript lines
 
 ## Requirements
 
@@ -36,66 +41,41 @@ You need:
 
 1. Python 3.11 or later
 2. `ffmpeg`
-3. `pip`
+3. Python packages from [requirements.txt](/d:/TG/whisper/requirements.txt)
 
-## Setup
+## Python Dependencies
 
-### 1. Install Python
+Current dependencies:
 
-Check whether Python is available:
+- `faster-whisper`
+- `torch`
+- `transformers`
+- `sentencepiece`
 
-```powershell
-python --version
-```
-
-or:
-
-```powershell
-py --version
-```
-
-If `py` does not find Python, you can still run with the full executable path, for example:
-
-```powershell
-C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe --version
-```
-
-### 2. Install ffmpeg
-
-Check:
-
-```powershell
-ffmpeg -version
-```
-
-If this fails, install `ffmpeg` and add it to `PATH`.
-
-### 3. Install Python dependencies
-
-From the project folder:
+Install them with:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-If needed:
+## ffmpeg Requirement
+
+Audio extraction requires `ffmpeg`.
+
+Check with:
 
 ```powershell
-python -m pip install -r requirements.txt
+ffmpeg -version
 ```
 
-or:
-
-```powershell
-py -m pip install -r requirements.txt
-```
+If PowerShell says it is not recognized, install `ffmpeg` and add it to `PATH`.
 
 ## Usage
 
-### Step 1. Extract audio from a video
+### 1. Extract audio from video
 
 ```powershell
-extract_audio.bat sample.mp4
+.\extract_audio.bat .\sample.mp4
 ```
 
 This creates:
@@ -104,57 +84,69 @@ This creates:
 sample.wav
 ```
 
-The WAV is generated as:
-
-- mono
-- `16 kHz`
-- `pcm_s16le`
-
-### Step 2. Run transcription
-
-Basic command with auto-detection:
+### 2. Generate original transcript only
 
 ```powershell
 py -X utf8 transcribe.py sample.wav
 ```
 
-Force a language explicitly:
-
-```powershell
-py -X utf8 transcribe.py sample.wav zh
-py -X utf8 transcribe.py sample.wav en
-py -X utf8 transcribe.py sample.wav hi
-py -X utf8 transcribe.py sample.wav ja
-```
-
-Pick a model explicitly:
-
-```powershell
-py -X utf8 transcribe.py sample.wav auto medium
-py -X utf8 transcribe.py sample.wav zh large-v3 cpu
-py -X utf8 transcribe.py sample.wav en base cuda
-```
-
-If `py` is unreliable on your machine, use the direct Python executable:
-
-```powershell
-C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py sample.wav auto medium auto
-```
-
-## Script Arguments
-
-The script accepts:
+This writes:
 
 ```text
-python transcribe.py <audio_file> [language|auto] [model_size] [device]
+sample.txt
+```
+
+### 3. Generate English translation
+
+```powershell
+py -X utf8 transcribe.py sample.wav auto medium auto en
+```
+
+This writes:
+
+```text
+sample.txt
+sample.en.txt
+```
+
+Behavior:
+
+- `sample.txt` is the original-language transcript
+- `sample.en.txt` is created using Whisper translation
+
+### 4. Generate another target language
+
+Example for Hindi:
+
+```powershell
+py -X utf8 transcribe.py sample.wav auto medium auto hi
+```
+
+This writes:
+
+```text
+sample.txt
+sample.hi.txt
+```
+
+Behavior:
+
+- `sample.txt` is the original-language transcript
+- `sample.hi.txt` is translated from the original transcript using NLLB
+
+## Command Format
+
+```text
+python transcribe.py <audio_file> [source_language|auto] [model_size] [device] [target_language]
 ```
 
 Arguments:
 
-- `audio_file`: path to the WAV file
-- `language|auto`: optional, defaults to `auto`
-- `model_size`: optional, defaults to `medium`
-- `device`: optional, defaults to `auto`
+- `audio_file`: input WAV file
+- `source_language|auto`: source language code or `auto`
+- `model_size`: Whisper model, default `medium`
+- `device`: `auto`, `cpu`, or `cuda`
+- `target_language`: optional translated output language
 
 Examples:
 
@@ -162,170 +154,91 @@ Examples:
 py -X utf8 transcribe.py sample.wav
 py -X utf8 transcribe.py sample.wav auto medium auto
 py -X utf8 transcribe.py sample.wav zh medium cpu
-py -X utf8 transcribe.py sample.wav en small cuda
-py -X utf8 transcribe.py sample.wav hi medium auto
-py -X utf8 transcribe.py sample.wav ja large-v3 auto
+py -X utf8 transcribe.py sample.wav zh medium auto en
+py -X utf8 transcribe.py sample.wav zh medium auto hi
+py -X utf8 transcribe.py sample.wav en small auto fr
 ```
 
-Device options:
+## Translation Routing Logic
 
-- `auto`: try NVIDIA CUDA first, then fall back to CPU
-- `cpu`: force CPU execution
-- `cuda`: force NVIDIA GPU execution
+The current repo uses this rule:
 
-Common language codes:
+- no `target_language`
+  - transcription only
+- `target_language=en`
+  - original transcript with Whisper `task="transcribe"`
+  - English translation with Whisper `task="translate"`
+- `target_language` is any other mapped language
+  - original transcript with Whisper `task="transcribe"`
+  - translated transcript with NLLB
 
-- `auto`: automatic language detection
-- `zh`: Chinese
-- `en`: English
-- `hi`: Hindi
-- `ja`: Japanese
-- `ko`: Korean
-- `fr`: French
-- `de`: German
-- `es`: Spanish
-- `it`: Italian
-- `pt`: Portuguese
-- `ru`: Russian
-- `ar`: Arabic
+This keeps the English path simple and uses a dedicated multilingual translation model for other target languages.
 
-Whisper supports many more languages than the list above.
+## Supported Non-English Translation Codes
 
-## Output
+The current NLLB mapping in the repo supports:
 
-For input like:
+- `ar`
+- `de`
+- `en`
+- `es`
+- `fr`
+- `hi`
+- `it`
+- `ja`
+- `ko`
+- `pt`
+- `ru`
+- `zh`
 
-```text
-sample.wav
-```
+If you request another target language for the NLLB stage, you will need to add its mapping in [transcribe.py](/d:/TG/whisper/transcribe.py).
 
-the script writes:
+## Output Files
 
-```text
-sample.txt
-```
+For input `sample.wav`, possible outputs are:
 
-Each output line looks like:
+- `sample.txt`: original transcript
+- `sample.en.txt`: English translation
+- `sample.hi.txt`: Hindi translation
+- `sample.fr.txt`: French translation
+
+Each line keeps timestamps:
 
 ```text
 [0.56s -> 2.04s] Hello everyone
 [2.04s -> 5.40s] Welcome to the video
 ```
 
-The output file is updated live while transcription is running.
+For NLLB translation, the timestamp prefix is preserved and only the text part is translated.
 
-## Progress and Status Messages
+## Runtime Status
 
-The script now shows:
+The script prints:
 
-- requested language or auto-detect mode
-- model loading step
-- notice when first-run model download may happen
-- transcription start
-- detected language
-- live progress bar
-- final completion message
+- requested source language
+- requested target language
+- chosen device mode
+- model loading stage
+- whether GPU fallback happened
+- detected source language
+- progress lines as segments are written
+- periodic “still working” status during long waits
+- total processing time
 
-Example:
+## Device Behavior
 
-```text
-Preparing transcription for: sample.wav
-Requested language: auto-detect
-Selected model: medium
-Device preference: auto
-Initial execution target: cuda (float16)
-Device selection note: Auto mode: trying NVIDIA CUDA GPU first
-Step 1/3: Loading Whisper model...
-If this is the first run for this model, it may download files before transcription begins.
-CUDA setup is not available. Falling back to CPU.
-Step 1/3 complete: Model is ready on cpu.
-Step 2/3: Starting transcription...
-Transcribing: sample.wav
-Audio length: 150.22s
-Writing transcript live to: sample.txt
-Running on device: cpu (int8)
-Step 2/3 active: Receiving segments from the model...
-Detected language: en (probability: 0.99)
-[##########--------------------] 35.12% (52.77s / 150.22s)
-```
+Device argument:
+
+- `auto`: try NVIDIA CUDA first, otherwise use CPU
+- `cpu`: force CPU
+- `cuda`: force NVIDIA GPU
+
+Important note:
+
+- GPU acceleration in this repo is for NVIDIA CUDA environments
+- on systems without working CUDA, `auto` falls back to CPU
 
 ## What `-X utf8` Does
-
-`-X utf8` tells Python to force UTF-8 mode.
-
-This is especially helpful on Windows so non-English text such as Chinese, Hindi, Japanese, Arabic, or Russian does not get mangled in console output.
-
-Recommended:
-
-```powershell
-py -X utf8 transcribe.py sample.wav
-```
-
-## Model Notes
-
-Supported examples in this repo:
-
-- `tiny`
-- `base`
-- `small`
-- `medium`
-- `large-v3`
-
-General guidance:
-
-- `base` or `small`: faster for testing
-- `medium`: balanced default
-- `large-v3`: slower, but often better for harder audio
-
-On first run, a model may need to download before transcription starts.
-
-## GPU Support
-
-This repo can automatically use GPU when the machine has a supported NVIDIA CUDA setup.
-
-Important notes:
-
-- GPU acceleration in this setup is for NVIDIA GPUs
-- `auto` mode tries `cuda` first and falls back to CPU if CUDA is unavailable
-- machines without NVIDIA GPU will continue to work on CPU
-
-Examples:
-
-```powershell
-py -X utf8 transcribe.py sample.wav auto medium auto
-py -X utf8 transcribe.py sample.wav auto medium cpu
-py -X utf8 transcribe.py sample.wav auto medium cuda
-```
-
-If a user has a working NVIDIA CUDA environment, `auto` mode should use it. If not, the script will continue on CPU.
-
-## Common Issues
-
-### `ffmpeg` is not recognized
-
-Install `ffmpeg` and add it to `PATH`.
-
-### `py` says `No installed Python found`
-
-Use the full Python path or repair the Python installation.
-
-Example:
-
-```powershell
-C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py sample.wav auto medium
-```
-
-### Transcript file stays empty at first
-
-Possible reasons:
-
-- model is still downloading
-- model is still loading
-- transcription has not begun producing segments yet
-
-Watch the terminal status messages to see which stage is currently active.
-
-### Non-English characters look broken
 
 Use:
 
@@ -333,53 +246,57 @@ Use:
 py -X utf8 transcribe.py sample.wav
 ```
 
-and make sure your editor or terminal is using UTF-8 properly.
+This forces UTF-8 mode in Python, which helps avoid garbled non-English output on Windows terminals.
 
 ## Example Workflows
 
-### Chinese transcription
+### Chinese audio to Chinese transcript
 
 ```powershell
-extract_audio.bat sample.mp4
-py -X utf8 transcribe.py sample.wav zh medium
+.\extract_audio.bat .\sample.mp4
+py -X utf8 transcribe.py sample.wav zh medium auto
 ```
 
-### English transcription
+### Chinese audio to English transcript
 
 ```powershell
-extract_audio.bat sample.mp4
-py -X utf8 transcribe.py sample.wav en medium
+.\extract_audio.bat .\sample.mp4
+py -X utf8 transcribe.py sample.wav zh medium auto en
 ```
 
-### Hindi transcription
+### Chinese audio to Hindi transcript
 
 ```powershell
-extract_audio.bat sample.mp4
-py -X utf8 transcribe.py sample.wav hi medium
+.\extract_audio.bat .\sample.mp4
+py -X utf8 transcribe.py sample.wav zh medium auto hi
 ```
 
-### Automatic language detection
+### Auto-detect source language, output French
 
 ```powershell
-extract_audio.bat sample.mp4
-py -X utf8 transcribe.py sample.wav auto medium
+.\extract_audio.bat .\sample.mp4
+py -X utf8 transcribe.py sample.wav auto medium auto fr
 ```
+
+## Common Notes
+
+- English translation runs an additional Whisper pass, so it takes longer than transcript-only mode.
+- Non-English translation loads a second model, so the first translation run may download more files.
+- CPU-only translation can be noticeably slow, especially for larger Whisper models and long videos.
+- If the detected source language matches the requested target language, the repo keeps the original transcript as the final output.
 
 ## Current Limitations
 
-This repo is still intentionally simple. It does not yet include:
-
-- subtitle export like `.srt`
-- batch processing for many files
-- speaker diarization
-- translation output
-- punctuation cleanup or post-processing
-- GUI
+- NLLB language coverage in this repo is limited to the codes mapped in `transcribe.py`
+- no `.srt` output yet
+- no batch folder processing yet
+- no speaker diarization
+- no GUI
 
 ## Good Next Improvements
 
+- add more NLLB language mappings
 - add `.srt` export
-- derive output names automatically from input files
-- add better exception handling for model download/runtime failures
-- add one-click end-to-end batch commands
-- optionally support translation into English
+- add a one-command end-to-end runner
+- add batch processing for multiple videos
+- add translation progress batching for faster non-English translation
