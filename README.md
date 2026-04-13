@@ -1,52 +1,47 @@
-# Video Transcript Generator for Chinese Videos
+# Video Transcript Generator
 
 This project extracts audio from a video file and generates a timestamped transcript using `faster-whisper`.
 
-It is currently set up for a simple Windows-based workflow:
+It now works for any language supported by Whisper, not just Chinese.
 
-1. extract audio from a video into a mono `16 kHz` WAV file
-2. run Whisper transcription with Chinese as the target language
-3. write transcript output to a `.txt` file while transcription is still running
-4. show a live terminal progress bar so you can see work is continuing
+You can:
 
-## Current Project Files
+- let Whisper auto-detect the language
+- force a specific language such as `zh`, `en`, `hi`, `ja`, `fr`, or `de`
+- watch a live progress bar while transcription runs
+- see transcript lines written into the output file as they are generated
 
-- [extract_audio.bat](/d:/TG/whisper/extract_audio.bat) converts a video into `audio.wav`
-- [transcribe.py](/d:/TG/whisper/transcribe.py) runs `faster-whisper` and writes the transcript
-- [requirements.txt](/d:/TG/whisper/requirements.txt) contains the Python dependency list
-- `sample.mp4` is a sample input video
-- `audio.wav` is a generated WAV file used for transcription
-- `audio.txt` is the generated transcript output
+## Features
 
-## What This Project Does
+- extracts mono `16 kHz` WAV audio from video using `ffmpeg`
+- transcribes audio with `faster-whisper`
+- supports any Whisper-supported language
+- defaults to automatic language detection
+- writes timestamped transcript output to `.txt`
+- updates the transcript file live during processing
+- shows clear model-loading and transcription status messages
+- shows an approximate progress bar based on WAV duration
 
-The transcription script:
+## Project Files
 
-- loads a Whisper model through `faster-whisper`
-- transcribes the audio with `language="zh"` by default
-- writes timestamped transcript lines like:
+- [extract_audio.bat](/d:/TG/whisper/extract_audio.bat): converts input video to a same-name `.wav` file
+- [transcribe.py](/d:/TG/whisper/transcribe.py): runs transcription and writes transcript output
+- [requirements.txt](/d:/TG/whisper/requirements.txt): Python dependency list
+- `sample.mp4`: sample input file
 
-```text
-[0.56s -> 2.04s] 哇
-[4.68s -> 6.44s] 烤鸡 马河 吃仙兰
-```
+## Requirements
 
-- updates `audio.txt` live as segments are produced
-- displays a progress bar based on WAV duration
-
-## Prerequisites
-
-You need these installed on Windows:
+You need:
 
 1. Python 3.11 or later
 2. `ffmpeg`
 3. `pip`
 
-## Install Python
+## Setup
 
-Install Python from the official installer and make sure it is actually available from terminal.
+### 1. Install Python
 
-Check with:
+Check whether Python is available:
 
 ```powershell
 python --version
@@ -58,27 +53,23 @@ or:
 py --version
 ```
 
-If `py` says `No installed Python found`, but you know Python is installed, use the full executable path instead, for example:
+If `py` does not find Python, you can still run with the full executable path, for example:
 
 ```powershell
 C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe --version
 ```
 
-## Install ffmpeg
+### 2. Install ffmpeg
 
-`extract_audio.bat` depends on `ffmpeg`.
-
-Check with:
+Check:
 
 ```powershell
 ffmpeg -version
 ```
 
-If that fails, install `ffmpeg` and add it to your `PATH`.
+If this fails, install `ffmpeg` and add it to `PATH`.
 
-Without `ffmpeg`, audio extraction will not work.
-
-## Install Python Dependencies
+### 3. Install Python dependencies
 
 From the project folder:
 
@@ -86,7 +77,7 @@ From the project folder:
 pip install -r requirements.txt
 ```
 
-If `pip` is not mapped correctly:
+If needed:
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -98,11 +89,9 @@ or:
 py -m pip install -r requirements.txt
 ```
 
-## Recommended Project Flow
+## Usage
 
-### 1. Extract audio from a video
-
-Run:
+### Step 1. Extract audio from a video
 
 ```powershell
 extract_audio.bat sample.mp4
@@ -111,75 +100,157 @@ extract_audio.bat sample.mp4
 This creates:
 
 ```text
-audio.wav
+sample.wav
 ```
 
-The batch file converts the input to:
+The WAV is generated as:
 
-- mono audio
+- mono
 - `16 kHz`
-- `pcm_s16le` WAV
+- `pcm_s16le`
 
-This format is suitable for Whisper transcription.
+### Step 2. Run transcription
 
-### 2. Run the transcription
-
-Basic command:
+Basic command with auto-detection:
 
 ```powershell
-py -X utf8 transcribe.py audio.wav
+py -X utf8 transcribe.py sample.wav
 ```
 
-Recommended command for Chinese:
+Force a language explicitly:
 
 ```powershell
-py -X utf8 transcribe.py audio.wav zh medium
+py -X utf8 transcribe.py sample.wav zh
+py -X utf8 transcribe.py sample.wav en
+py -X utf8 transcribe.py sample.wav hi
+py -X utf8 transcribe.py sample.wav ja
 ```
 
-You can also use:
+Pick a model explicitly:
 
 ```powershell
-py -X utf8 transcribe.py audio.wav zh large-v3
+py -X utf8 transcribe.py sample.wav auto medium
+py -X utf8 transcribe.py sample.wav zh large-v3
+py -X utf8 transcribe.py sample.wav en base
 ```
 
-If `py` does not work on your system, run Python directly:
+If `py` is unreliable on your machine, use the direct Python executable:
 
 ```powershell
-C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py audio.wav zh medium
+C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py sample.wav auto medium
 ```
-
-## What `-X utf8` Means
-
-This flag tells Python to force UTF-8 mode.
-
-That helps on Windows because Chinese output can otherwise appear garbled depending on console encoding.
-
-Your script also sets UTF-8 output internally, but `-X utf8` is still a good extra safety option when working with Chinese transcripts.
 
 ## Script Arguments
 
-The transcription script supports:
+The script accepts:
 
 ```text
-python transcribe.py <audio_file> [language] [model_size]
+python transcribe.py <audio_file> [language|auto] [model_size]
 ```
+
+Arguments:
+
+- `audio_file`: path to the WAV file
+- `language|auto`: optional, defaults to `auto`
+- `model_size`: optional, defaults to `medium`
 
 Examples:
 
 ```powershell
-py -X utf8 transcribe.py audio.wav
-py -X utf8 transcribe.py audio.wav zh base
-py -X utf8 transcribe.py audio.wav zh medium
-py -X utf8 transcribe.py audio.wav zh large-v3
+py -X utf8 transcribe.py sample.wav
+py -X utf8 transcribe.py sample.wav auto
+py -X utf8 transcribe.py sample.wav zh
+py -X utf8 transcribe.py sample.wav en small
+py -X utf8 transcribe.py sample.wav hi medium
+py -X utf8 transcribe.py sample.wav ja large-v3
 ```
 
-Argument details:
+Common language codes:
 
-- `audio_file`: path to the WAV file
-- `language`: defaults to `zh`
-- `model_size`: defaults to `medium`
+- `auto`: automatic language detection
+- `zh`: Chinese
+- `en`: English
+- `hi`: Hindi
+- `ja`: Japanese
+- `ko`: Korean
+- `fr`: French
+- `de`: German
+- `es`: Spanish
+- `it`: Italian
+- `pt`: Portuguese
+- `ru`: Russian
+- `ar`: Arabic
 
-Supported model examples in this repo:
+Whisper supports many more languages than the list above.
+
+## Output
+
+For input like:
+
+```text
+sample.wav
+```
+
+the script writes:
+
+```text
+sample.txt
+```
+
+Each output line looks like:
+
+```text
+[0.56s -> 2.04s] Hello everyone
+[2.04s -> 5.40s] Welcome to the video
+```
+
+The output file is updated live while transcription is running.
+
+## Progress and Status Messages
+
+The script now shows:
+
+- requested language or auto-detect mode
+- model loading step
+- notice when first-run model download may happen
+- transcription start
+- detected language
+- live progress bar
+- final completion message
+
+Example:
+
+```text
+Preparing transcription for: sample.wav
+Requested language: auto-detect
+Selected model: medium
+Step 1/3: Loading Whisper model...
+If this is the first run for this model, it may download files before transcription begins.
+Step 1/3 complete: Model is ready.
+Step 2/3: Starting transcription...
+Transcribing: sample.wav
+Audio length: 150.22s
+Writing transcript live to: sample.txt
+Step 2/3 active: Receiving segments from the model...
+Detected language: en (probability: 0.99)
+[##########--------------------] 35.12% (52.77s / 150.22s)
+```
+
+## What `-X utf8` Does
+
+`-X utf8` tells Python to force UTF-8 mode.
+
+This is especially helpful on Windows so non-English text such as Chinese, Hindi, Japanese, Arabic, or Russian does not get mangled in console output.
+
+Recommended:
+
+```powershell
+py -X utf8 transcribe.py sample.wav
+```
+
+## Model Notes
+
+Supported examples in this repo:
 
 - `tiny`
 - `base`
@@ -187,278 +258,95 @@ Supported model examples in this repo:
 - `medium`
 - `large-v3`
 
-## What You Will See During Transcription
+General guidance:
 
-The script now prints clearer progress information.
+- `base` or `small`: faster for testing
+- `medium`: balanced default
+- `large-v3`: slower, but often better for harder audio
 
-Typical flow:
+On first run, a model may need to download before transcription starts.
 
-```text
-Preparing transcription for: audio.wav
-Requested language: zh
-Selected model: medium
-Step 1/3: Loading Whisper model...
-If this is the first run for this model, it may download files before transcription begins.
-Step 1/3 complete: Model is ready.
-Step 2/3: Starting transcription...
-Transcribing: audio.wav
-Audio length: 150.22s
-Writing transcript live to: audio.txt
-Step 2/3 active: Receiving segments from the model...
-Detected language: zh (probability: 0.99)
-[##########--------------------] 35.12% (52.77s / 150.22s)
-```
+## Common Issues
 
-At the end:
+### `ffmpeg` is not recognized
 
-```text
-Step 3/3 complete: Transcript written successfully.
-Transcription saved to: audio.txt
-```
+Install `ffmpeg` and add it to `PATH`.
 
-## Live Transcript Behavior
+### `py` says `No installed Python found`
 
-The script writes transcript output incrementally.
-
-That means:
-
-- `audio.txt` is created early
-- lines are appended while recognition is happening
-- you do not need to wait until the full job finishes to inspect output
-
-This is useful when long videos make transcription feel like it is stuck.
-
-## Model Download Behavior
-
-On first run of a model like `medium` or `large-v3`, the script may take time before actual transcription starts.
-
-That is expected because `faster-whisper` may need to download model files first.
-
-This can happen especially for:
-
-- `medium`
-- `large-v3`
-
-Larger models usually provide better accuracy, but they:
-
-- take longer to download
-- use more disk space
-- run slower on CPU
-
-If you want faster initial testing, try:
-
-```powershell
-py -X utf8 transcribe.py audio.wav zh base
-```
-
-or:
-
-```powershell
-py -X utf8 transcribe.py audio.wav zh small
-```
-
-## Hugging Face Warnings You May See
-
-You may see a warning like:
-
-- unauthenticated requests to the HF Hub
-- cache uses symlinks but your Windows setup does not support them
-
-These are usually warnings, not fatal errors.
-
-### Unauthenticated HF Hub requests
-
-This means model downloads are happening without a Hugging Face token.
-
-Usually the script still works, but downloads may be:
-
-- slower
-- rate-limited
-
-### Windows symlink warning
-
-This means Hugging Face cache wants to use symlinks, but Windows is not configured for them.
-
-The download still works, but caching may use more disk space.
-
-Possible fixes:
-
-- enable Windows Developer Mode
-- run the shell as administrator
-- set `HF_HUB_DISABLE_SYMLINKS_WARNING=1` to suppress only the warning
+Use the full Python path or repair the Python installation.
 
 Example:
 
 ```powershell
-set HF_HUB_DISABLE_SYMLINKS_WARNING=1
-py -X utf8 transcribe.py audio.wav zh medium
+C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py sample.wav auto medium
 ```
 
-## Expected Output
-
-For `audio.wav`, the script writes:
-
-```text
-audio.txt
-```
-
-Each line includes:
-
-- segment start time
-- segment end time
-- recognized text
-
-Example:
-
-```text
-[36.00s -> 38.00s] 个子又高长得又漂亮
-[38.00s -> 40.00s] 你看脖子多长
-```
-
-## Common Problems and Fixes
-
-### 1. `ffmpeg` is not recognized
-
-Problem:
-
-```text
-ffmpeg : The term 'ffmpeg' is not recognized ...
-```
-
-Fix:
-
-- install `ffmpeg`
-- add it to `PATH`
-- reopen terminal
-
-### 2. `py` says `No installed Python found`
-
-Problem:
-
-```text
-No installed Python found!
-```
-
-Fix:
-
-- use the full Python executable path
-- or repair/reinstall Python so the launcher can find it
-
-Example:
-
-```powershell
-C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py audio.wav zh medium
-```
-
-### 3. `audio.txt` stays empty
+### Transcript file stays empty at first
 
 Possible reasons:
 
 - model is still downloading
-- transcription has not started yet
-- Python failed before segment generation
-- wrong audio path
+- model is still loading
+- transcription has not begun producing segments yet
 
-Checks:
+Watch the terminal status messages to see which stage is currently active.
 
-- look at terminal output
-- confirm `audio.wav` exists
-- verify the model load completed
+### Non-English characters look broken
 
-### 4. Chinese characters look broken
+Use:
 
-Fix:
+```powershell
+py -X utf8 transcribe.py sample.wav
+```
 
-- use `-X utf8`
-- keep file encoding as UTF-8
-- use a terminal/editor that displays UTF-8 properly
+and make sure your editor or terminal is using UTF-8 properly.
 
-### 5. Transcription feels too slow
+## Example Workflows
 
-Possible reasons:
-
-- large model download
-- CPU-only inference
-- long source audio
-
-Ways to improve:
-
-- start with `base` or `small`
-- keep using mono `16 kHz` WAV input
-- avoid very large models for quick tests
-
-## Example End-to-End Commands
-
-### From video to transcript
+### Chinese transcription
 
 ```powershell
 extract_audio.bat sample.mp4
-py -X utf8 transcribe.py audio.wav zh medium
+py -X utf8 transcribe.py sample.wav zh medium
 ```
 
-### Faster smoke test
+### English transcription
 
 ```powershell
 extract_audio.bat sample.mp4
-py -X utf8 transcribe.py audio.wav zh base
+py -X utf8 transcribe.py sample.wav en medium
 ```
 
-### Large model run
+### Hindi transcription
 
 ```powershell
 extract_audio.bat sample.mp4
-py -X utf8 transcribe.py audio.wav zh large-v3
+py -X utf8 transcribe.py sample.wav hi medium
 ```
 
-## Notes on Accuracy
+### Automatic language detection
 
-Chinese transcription quality depends on:
-
-- audio clarity
-- speaker overlap
-- background noise
-- dialect/accent variation
-- chosen model size
-
-If results look strange, try:
-
-- a larger model like `large-v3`
-- cleaner audio
-- trimming silence/noise before transcription
+```powershell
+extract_audio.bat sample.mp4
+py -X utf8 transcribe.py sample.wav auto medium
+```
 
 ## Current Limitations
 
-The current repo is intentionally simple. It does not yet include:
+This repo is still intentionally simple. It does not yet include:
 
-- subtitle export such as `.srt`
-- automatic batch processing of many videos
-- GUI
-- punctuation cleanup or post-processing
+- subtitle export like `.srt`
+- batch processing for many files
 - speaker diarization
+- translation output
+- punctuation cleanup or post-processing
+- GUI
 
-## Future Improvements
+## Good Next Improvements
 
-Useful next upgrades could be:
-
-- `.srt` subtitle generation
-- selecting output file names automatically from input video names
-- better exception handling for model download failures
-- a one-click batch file for full video-to-transcript workflow
-- optional English translation output
-
-## Quick Start
-
-If you just want the shortest working path:
-
-```powershell
-extract_audio.bat sample.mp4
-py -X utf8 transcribe.py audio.wav zh medium
-```
-
-Then open:
-
-```text
-audio.txt
-```
-
-to see the transcript as it is generated.
+- add `.srt` export
+- derive output names automatically from input files
+- add better exception handling for model download/runtime failures
+- add one-click end-to-end batch commands
+- optionally support translation into English
