@@ -35,7 +35,7 @@ def render_progress(current_end: float, total_duration: float | None, width: int
     )
 
 
-def transcribe(audio_file: str, language: str = "zh", model_size: str = "medium") -> None:
+def transcribe(audio_file: str, language: str | None = None, model_size: str = "medium") -> None:
     audio_path = Path(audio_file)
     if not audio_path.exists():
         print(f"Error: audio file not found: {audio_file}")
@@ -45,7 +45,8 @@ def transcribe(audio_file: str, language: str = "zh", model_size: str = "medium"
     output_file = audio_path.with_suffix(".txt")
 
     print(f"Preparing transcription for: {audio_file}")
-    print(f"Requested language: {language}")
+    requested_language = language if language else "auto-detect"
+    print(f"Requested language: {requested_language}")
     print(f"Selected model: {model_size}")
     print("Step 1/3: Loading Whisper model...")
     print("If this is the first run for this model, it may download files before transcription begins.")
@@ -82,13 +83,14 @@ def transcribe(audio_file: str, language: str = "zh", model_size: str = "medium"
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python transcribe.py <audio_file> [language] [model_size]")
-        print("  language:   zh (default), en, ja, etc.")
+        print("Usage: python transcribe.py <audio_file> [language|auto] [model_size]")
+        print("  language:   auto (default), zh, en, ja, hi, fr, de, etc.")
         print("  model_size: tiny, base, small, medium (default), large-v3")
         sys.exit(1)
 
     audio = sys.argv[1]
-    lang = sys.argv[2] if len(sys.argv) > 2 else "zh"
+    lang = sys.argv[2] if len(sys.argv) > 2 else "auto"
+    lang = None if lang.lower() == "auto" else lang
     model = sys.argv[3] if len(sys.argv) > 3 else "medium"
 
     transcribe(audio, lang, model)
