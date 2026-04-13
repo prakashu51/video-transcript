@@ -17,6 +17,7 @@ You can:
 - transcribes audio with `faster-whisper`
 - supports any Whisper-supported language
 - defaults to automatic language detection
+- defaults to automatic device selection with CPU fallback
 - writes timestamped transcript output to `.txt`
 - updates the transcript file live during processing
 - shows clear model-loading and transcription status messages
@@ -130,14 +131,14 @@ Pick a model explicitly:
 
 ```powershell
 py -X utf8 transcribe.py sample.wav auto medium
-py -X utf8 transcribe.py sample.wav zh large-v3
-py -X utf8 transcribe.py sample.wav en base
+py -X utf8 transcribe.py sample.wav zh large-v3 cpu
+py -X utf8 transcribe.py sample.wav en base cuda
 ```
 
 If `py` is unreliable on your machine, use the direct Python executable:
 
 ```powershell
-C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py sample.wav auto medium
+C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X utf8 transcribe.py sample.wav auto medium auto
 ```
 
 ## Script Arguments
@@ -145,7 +146,7 @@ C:\Users\ZML-WIN-VijayN-01\AppData\Local\Programs\Python\Python311\python.exe -X
 The script accepts:
 
 ```text
-python transcribe.py <audio_file> [language|auto] [model_size]
+python transcribe.py <audio_file> [language|auto] [model_size] [device]
 ```
 
 Arguments:
@@ -153,17 +154,24 @@ Arguments:
 - `audio_file`: path to the WAV file
 - `language|auto`: optional, defaults to `auto`
 - `model_size`: optional, defaults to `medium`
+- `device`: optional, defaults to `auto`
 
 Examples:
 
 ```powershell
 py -X utf8 transcribe.py sample.wav
-py -X utf8 transcribe.py sample.wav auto
-py -X utf8 transcribe.py sample.wav zh
-py -X utf8 transcribe.py sample.wav en small
-py -X utf8 transcribe.py sample.wav hi medium
-py -X utf8 transcribe.py sample.wav ja large-v3
+py -X utf8 transcribe.py sample.wav auto medium auto
+py -X utf8 transcribe.py sample.wav zh medium cpu
+py -X utf8 transcribe.py sample.wav en small cuda
+py -X utf8 transcribe.py sample.wav hi medium auto
+py -X utf8 transcribe.py sample.wav ja large-v3 auto
 ```
+
+Device options:
+
+- `auto`: try NVIDIA CUDA first, then fall back to CPU
+- `cpu`: force CPU execution
+- `cuda`: force NVIDIA GPU execution
 
 Common language codes:
 
@@ -224,13 +232,18 @@ Example:
 Preparing transcription for: sample.wav
 Requested language: auto-detect
 Selected model: medium
+Device preference: auto
+Initial execution target: cuda (float16)
+Device selection note: Auto mode: trying NVIDIA CUDA GPU first
 Step 1/3: Loading Whisper model...
 If this is the first run for this model, it may download files before transcription begins.
-Step 1/3 complete: Model is ready.
+CUDA setup is not available. Falling back to CPU.
+Step 1/3 complete: Model is ready on cpu.
 Step 2/3: Starting transcription...
 Transcribing: sample.wav
 Audio length: 150.22s
 Writing transcript live to: sample.txt
+Running on device: cpu (int8)
 Step 2/3 active: Receiving segments from the model...
 Detected language: en (probability: 0.99)
 [##########--------------------] 35.12% (52.77s / 150.22s)
@@ -265,6 +278,26 @@ General guidance:
 - `large-v3`: slower, but often better for harder audio
 
 On first run, a model may need to download before transcription starts.
+
+## GPU Support
+
+This repo can automatically use GPU when the machine has a supported NVIDIA CUDA setup.
+
+Important notes:
+
+- GPU acceleration in this setup is for NVIDIA GPUs
+- `auto` mode tries `cuda` first and falls back to CPU if CUDA is unavailable
+- machines without NVIDIA GPU will continue to work on CPU
+
+Examples:
+
+```powershell
+py -X utf8 transcribe.py sample.wav auto medium auto
+py -X utf8 transcribe.py sample.wav auto medium cpu
+py -X utf8 transcribe.py sample.wav auto medium cuda
+```
+
+If a user has a working NVIDIA CUDA environment, `auto` mode should use it. If not, the script will continue on CPU.
 
 ## Common Issues
 
