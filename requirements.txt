@@ -2,3 +2,6 @@ faster-whisper
 sentencepiece
 torch
 transformers
+pyannote.audio
+python-dotenv
+soundfile
