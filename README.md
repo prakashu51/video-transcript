@@ -21,7 +21,10 @@ main.py              → CLI entry point & pipeline orchestration
 ├── transcriber.py   → Whisper transcription & segment alignment
 ├── translator.py    → NLLB-200 translation (standalone or integrated)
 ├── audio_utils.py   → Shared audio utilities (duration, output paths)
-└── config.py        → Language mappings & device configuration
+└── config.py        → Language mappings, device & RAG configuration
+
+chat.py              → Streamlit chat UI ("Chat with Transcript")
+└── rag_engine.py    → RAG pipeline: ingest, embed, query (Ollama + ChromaDB)
 ```
 
 ## Translation Strategy: English Bridge
@@ -42,7 +45,8 @@ Direct translation between distant language pairs (e.g. Chinese → Hindi) produ
 
 1. **Python 3.11+**
 2. **Hugging Face Token** — required for pyannote speaker diarization models
-3. **ffmpeg** *(optional)* — only needed if using the legacy `extract_audio.bat`. The Python-based `extract_audio.py` uses faster-whisper's bundled ffmpeg and requires no system installation.
+3. **Ollama** — required for the Chat with Transcript feature (local LLM)
+4. **ffmpeg** *(optional)* — only needed if using the legacy `extract_audio.bat`. The Python-based `extract_audio.py` uses faster-whisper's bundled ffmpeg and requires no system installation.
 
 ### Python Dependencies
 
@@ -51,8 +55,6 @@ Install all dependencies:
 ```powershell
 python -m pip install -r requirements.txt
 ```
-
-Dependencies: `faster-whisper`, `sentencepiece`, `torch`, `transformers`, `pyannote.audio`, `python-dotenv`, `soundfile`
 
 ### Hugging Face Setup
 
@@ -65,6 +67,27 @@ Dependencies: `faster-whisper`, `sentencepiece`, `torch`, `transformers`, `pyann
 
 ```env
 HF_TOKEN=hf_your_token_here
+```
+
+### Ollama Setup (for Chat with Transcript)
+
+1. Install [Ollama](https://ollama.com) for Windows:
+
+```powershell
+irm https://ollama.com/install.ps1 | iex
+```
+
+2. Pull the required models:
+
+```powershell
+ollama pull llama3.2
+ollama pull mxbai-embed-large
+```
+
+3. Verify Ollama is running:
+
+```powershell
+ollama list
 ```
 
 ## Usage
@@ -113,6 +136,32 @@ If you already have a transcript file, translate it directly:
 
 ```powershell
 python translator.py sample.en.txt sample.hi.txt en hi
+```
+
+### 6. Chat with Transcript (RAG)
+
+Launch the Streamlit chat interface:
+
+```powershell
+python -m streamlit run chat.py
+```
+
+This opens a browser-based chat UI at `http://localhost:8501` where you can:
+1. Select a transcript file from the sidebar
+2. Click **Index** to process it into the vector store
+3. Ask natural language questions about the content
+
+**CLI alternative** — you can also use the RAG engine directly:
+
+```powershell
+# Index a transcript
+python rag_engine.py ingest sample.en.txt
+
+# Query it
+python rag_engine.py query sample_en "What was the conversation about?"
+
+# List all indexed transcripts
+python rag_engine.py list
 ```
 
 ## Command Format
@@ -178,9 +227,11 @@ When you run `python main.py sample.wav auto medium auto hi`, the pipeline execu
 | `transcriber.py` | Whisper inference & speaker-segment alignment |
 | `translator.py` | NLLB translation (also usable standalone) |
 | `audio_utils.py` | Audio duration calculation, output path generation |
-| `config.py` | NLLB language map, device/compute resolution |
+| `config.py` | NLLB language map, device/compute & RAG configuration |
 | `extract_audio.py` | Video → WAV extraction (uses bundled ffmpeg) |
 | `extract_audio.bat` | Legacy ffmpeg wrapper (requires system ffmpeg) |
+| `rag_engine.py` | RAG pipeline: transcript ingestion, embedding, querying |
+| `chat.py` | Streamlit web chat UI for "Chat with Transcript" |
 | `requirements.txt` | Python dependencies |
 | `.env` | Hugging Face token (not committed to git) |
 | `.gitignore` | Git ignore rules for outputs, cache, and secrets |
@@ -218,6 +269,12 @@ python main.py sample.wav auto medium auto fr
 python translator.py sample.en.txt sample.ko.txt en ko
 ```
 
+### Chat with an English transcript
+
+```powershell
+python -m streamlit run chat.py
+```
+
 ## Common Notes
 
 - First run downloads Whisper, pyannote, and NLLB models (~3-5 GB total)
@@ -225,18 +282,18 @@ python translator.py sample.en.txt sample.ko.txt en ko
 - The English bridge translation adds one extra Whisper pass but produces far better results
 - CPU-only translation with NLLB is slower but fully functional
 - If the detected source language matches the target, no translation is performed
+- Chat with Transcript requires Ollama running locally with `llama3.2` and `mxbai-embed-large` models
 
 ## Current Limitations
 
 - No `.srt` subtitle export yet
 - No batch folder processing
-- No GUI
 - NLLB coverage limited to 12 mapped languages (easily extensible in `config.py`)
 
 ## Future Improvements
 
 - Add `.srt` export
 - Add batch processing for multiple videos
-- RAG-based "Chat with Transcript" feature
 - Add more NLLB language mappings
 - Translation progress batching for faster throughput
+- Multi-language RAG support (chat in native language)
