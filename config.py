@@ -16,6 +16,15 @@ NLLB_LANGUAGE_MAP = {
     "zh": "zho_Hans",
 }
 
+# --- RAG Configuration ---
+OLLAMA_BASE_URL = "http://localhost:11434"
+EMBEDDING_MODEL = "mxbai-embed-large"
+CHAT_MODEL = "llama3.2"
+CHROMA_PERSIST_DIR = "./chroma_db"
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+TOP_K_RESULTS = 5
+
 def resolve_device_and_compute_type(device_preference: str) -> tuple[str, str, str]:
     preference = device_preference.lower()
 
