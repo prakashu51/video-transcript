@@ -29,13 +29,15 @@ class LiveTranscriber:
     Captures microphone audio, uses Silero VAD to detect speech segments,
     and runs faster-whisper on each segment for real-time transcription.
     """
-    def __init__(self, model_size=LIVE_DEFAULT_MODEL, language=None, device_pref="auto", task="transcribe"):
+    def __init__(self, model_size=LIVE_DEFAULT_MODEL, language=None, device_pref="auto", task="transcribe", enable_emotion=False):
         # Import here to avoid slow startup if just viewing help
         from faster_whisper import WhisperModel
         
         self.sample_rate = LIVE_SAMPLE_RATE
         self.language = language
         self.task = task
+        self.enable_emotion = enable_emotion
+        self.emotion_analyzer = None
         
         # Audio and VAD parameters
         self.chunk_size = int(self.sample_rate * LIVE_VAD_CHUNK_MS / 1000)
@@ -53,7 +55,11 @@ class LiveTranscriber:
                 self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
             else:
                 raise e
-        
+                
+        if self.enable_emotion:
+            from emotion_analyzer import EmotionAnalyzer
+            self.emotion_analyzer = EmotionAnalyzer(device=selected_device)
+            
         print("Loading Silero VAD...")
         self.vad_model, utils = torch.hub.load(
             repo_or_dir='snakers4/silero-vad',
@@ -174,8 +180,15 @@ class LiveTranscriber:
         segment_text = "".join([segment.text for segment in segments]).strip()
         
         if segment_text:
+            emotion_tag = ""
+            if self.enable_emotion and self.emotion_analyzer is not None:
+                # audio_data is already float32, which the pipeline accepts
+                emotion = self.emotion_analyzer.detect_emotion(audio_data)
+                if emotion:
+                    emotion_tag = f"[{emotion}] "
+
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-            entry = f"[{timestamp}] {segment_text}"
+            entry = f"[{timestamp}] {emotion_tag}{segment_text}"
             self.transcript_history.append(entry)
             
             if self.on_segment_ready:
@@ -212,6 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("--lang", type=str, default=None, help="Source language code (e.g. 'zh', 'en')")
     parser.add_argument("--device", type=str, default="auto", help="Device (auto, cpu, cuda)")
     parser.add_argument("--translate", action="store_true", help="Translate to English in real-time")
+    parser.add_argument("--emotion", action="store_true", help="Enable Real-time Tone/Emotion detection")
     parser.add_argument("--save", action="store_true", help="Auto-save the session to a text file on exit")
     
     args = parser.parse_args()
@@ -222,7 +236,8 @@ if __name__ == "__main__":
         model_size=args.model,
         language=args.lang,
         device_pref=args.device,
-        task=task
+        task=task,
+        enable_emotion=args.emotion
     )
     
     transcriber.start_listening()

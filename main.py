@@ -19,12 +19,16 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python main.py <audio_file> [source_language|auto] [model_size] [device] [target_language]")
+        print("Usage: python main.py <audio_file> [source_language|auto] [model_size] [device] [target_language] [--emotion]")
         print("  source_language: auto (default), zh, en, ja, hi, fr, de, etc.")
         print("  model_size:      tiny, base, small, medium (default), large-v3")
         print("  device:          auto (default), cpu, cuda")
         print("  target_language: optional. Use en for Whisper translation or another mapped language for NLLB.")
         sys.exit(1)
+
+    enable_emotion = "--emotion" in sys.argv
+    if enable_emotion:
+        sys.argv.remove("--emotion")
 
     audio_file = sys.argv[1]
     source_lang = sys.argv[2] if len(sys.argv) > 2 else "auto"
@@ -70,6 +74,7 @@ def main():
         task="transcribe",
         stage_name="transcription",
         speaker_segments=speaker_segments,
+        enable_emotion=enable_emotion,
     )
 
     if not target_lang:
@@ -104,6 +109,7 @@ def main():
             task="translate",
             stage_name="English translation",
             speaker_segments=speaker_segments,
+            enable_emotion=enable_emotion,
         )
         if normalized_target == "en":
             total_elapsed = time.time() - start_time

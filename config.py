@@ -33,6 +33,7 @@ LIVE_SPEECH_THRESHOLD = 0.7     # Raised from 0.5 to ignore background noise
 LIVE_PRE_ROLL_MS = 200
 LIVE_MIN_SPEECH_DURATION = 0.3  # seconds
 LIVE_DEFAULT_MODEL = "base"     # Changed from small to base for much faster CPU processing
+EMOTION_MODEL = "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
 
 def resolve_device_and_compute_type(device_preference: str) -> tuple[str, str, str]:
     preference = device_preference.lower()

@@ -3,6 +3,7 @@ import time
 import threading
 from pathlib import Path
 from faster_whisper import WhisperModel
+from faster_whisper.audio import decode_audio
 from config import resolve_device_and_compute_type
 from audio_utils import render_progress, render_waiting_status
 from diarizer import align_speaker_with_segment
@@ -35,7 +36,9 @@ def write_segments_to_file(
     output_file: Path,
     total_duration: float | None,
     stage_label: str,
-    speaker_segments: list[dict]
+    speaker_segments: list[dict],
+    emotion_analyzer=None,
+    audio_array=None
 ) -> None:
     last_segment_end = [0.0]
     heartbeat_stop_event = threading.Event()
@@ -53,8 +56,18 @@ def write_segments_to_file(
                 # Align speaker
                 speaker_label = align_speaker_with_segment(segment.start, segment.end, speaker_segments)
                 
+                emotion_tag = ""
+                if emotion_analyzer and audio_array is not None:
+                    # Slice audio using 16000 sample rate
+                    start_sample = int(segment.start * 16000)
+                    end_sample = int(segment.end * 16000)
+                    audio_slice = audio_array[start_sample:end_sample]
+                    emotion = emotion_analyzer.detect_emotion(audio_slice)
+                    if emotion:
+                        emotion_tag = f"[{emotion}] "
+                
                 # Format output
-                line = f"[{segment.start:.2f}s -> {segment.end:.2f}s] [{speaker_label}]: {segment.text.strip()}"
+                line = f"[{segment.start:.2f}s -> {segment.end:.2f}s] [{speaker_label}]: {emotion_tag}{segment.text.strip()}"
                 
                 transcript_file.write(line + "\n")
                 transcript_file.flush()
@@ -78,10 +91,24 @@ def run_whisper_pass(
     total_duration: float | None,
     task: str,
     stage_name: str,
-    speaker_segments: list[dict]
+    speaker_segments: list[dict],
+    enable_emotion: bool = False
 ) -> str:
     print(f"\nStarting {stage_name}...")
     print(f"Writing transcript live to: {output_file}")
+
+    emotion_analyzer = None
+    audio_array = None
+    if enable_emotion:
+        from emotion_analyzer import EmotionAnalyzer
+        # Use CPU by default to not starve whisper if it's on CUDA, but we can pass selected_device if needed.
+        # Whisper model object has `model.device` property
+        dev_str = str(model.model.device)
+        dev = "cuda" if "cuda" in dev_str else "cpu"
+        emotion_analyzer = EmotionAnalyzer(device=dev)
+        print("Decoding audio for emotion analysis...")
+        # faster_whisper's decode_audio loads it securely to 16kHz float32
+        audio_array = decode_audio(audio_file)
 
     segments, info = model.transcribe(
         audio_file,
@@ -91,7 +118,15 @@ def run_whisper_pass(
     )
 
     print(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
-    write_segments_to_file(segments, output_file, total_duration, stage_name, speaker_segments)
+    write_segments_to_file(
+        segments, 
+        output_file, 
+        total_duration, 
+        stage_name, 
+        speaker_segments,
+        emotion_analyzer=emotion_analyzer,
+        audio_array=audio_array
+    )
     if total_duration:
         render_progress(total_duration, total_duration)
     return info.language
