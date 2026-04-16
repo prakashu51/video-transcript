@@ -154,7 +154,16 @@ def _get_embeddings(texts: list[str]) -> list[list[float]]:
 # ---------------------------------------------------------------------------
 
 def _get_chroma_client() -> chromadb.ClientAPI:
-    """Get a persistent ChromaDB client."""
+    """Get a persistent ChromaDB client with Streamlit cache protection."""
+    if "streamlit" in sys.modules:
+        import streamlit as st
+        @st.cache_resource(show_spinner=False)
+        def get_cached_client():
+            from chromadb.api import shared_system_client
+            shared_system_client.SharedSystemClient.clear_system_cache()
+            return chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
+        return get_cached_client()
+    
     return chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
 
 
