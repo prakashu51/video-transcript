@@ -214,11 +214,12 @@ elif st.session_state.app_mode == "Live Transcription":
         live_lang = live_lang.strip() if live_lang.strip() else None
         
         do_translate = st.checkbox("Translate to English live")
+        enable_emotion = st.checkbox("Detect Tone/Emotion (slower)")
         auto_save = st.checkbox("Auto-save session", value=True)
 
     def start_recording():
         task = "translate" if do_translate else "transcribe"
-        transcriber = LiveTranscriber(language=live_lang, device_pref="auto", task=task)
+        transcriber = LiveTranscriber(language=live_lang, device_pref="auto", task=task, enable_emotion=enable_emotion)
         
         # We hook into the transcriber so it updates our session state directly
         def on_new_text(text):

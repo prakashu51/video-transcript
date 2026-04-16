@@ -63,12 +63,21 @@ def translate_text_lines(
             # Let's split from the right by ": " if "Speaker" is in it, else by "] "
             if "[Speaker" in line and "]: " in line:
                 idx = line.find("]: ") + 3
-                line_metadata.append(line[:idx])
-                translatable_lines.append(line[idx:])
+                metadata = line[:idx]
+                text = line[idx:]
             else:
                 idx = line.find("] ") + 2
-                line_metadata.append(line[:idx])
-                translatable_lines.append(line[idx:])
+                metadata = line[:idx]
+                text = line[idx:]
+                
+            # Check if there is an emotion tag like [Happy] at the start of the text
+            if text.startswith("[") and "] " in text:
+                emotion_end_idx = text.find("] ") + 2
+                metadata += text[:emotion_end_idx]
+                text = text[emotion_end_idx:]
+                
+            line_metadata.append(metadata)
+            translatable_lines.append(text)
         else:
             line_metadata.append("")
             translatable_lines.append(line)
