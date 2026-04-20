@@ -6,6 +6,8 @@ A modular Python pipeline that extracts speaker-attributed, timestamped transcri
 
 - **Speaker Diarization** — Identifies and labels individual speakers using [pyannote.audio](https://github.com/pyannote/pyannote-audio)
 - **Transcription** — Generates accurate timestamped transcripts using [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+- **Scene-Aware Vision (RAG)** — Extracts frames using OpenCV and analyzes them with Ollama Multimodal (Llava) chronologically into the transcript.
+- **Vocal Emotion Detection** — Tracks speaker tone (Happy, Angry, etc.) using `transformers` across audio.
 - **Automatic Language Detection** — Whisper auto-detects the source language
 - **English Translation** — High-quality native Whisper translation for any language → English
 - **Multi-language Translation** — Translates to 12+ languages via [NLLB-200](https://huggingface.co/facebook/nllb-200-distilled-600M) with an English bridge for superior quality
@@ -16,12 +18,16 @@ A modular Python pipeline that extracts speaker-attributed, timestamped transcri
 
 ```
 extract_audio.py     → Video/audio → WAV extraction (no system ffmpeg needed)
-main.py              → CLI entry point & pipeline orchestration
-├── diarizer.py      → Speaker diarization (pyannote.audio)
-├── transcriber.py   → Whisper transcription & segment alignment
-├── translator.py    → NLLB-200 translation (standalone or integrated)
-├── audio_utils.py   → Shared audio utilities (duration, output paths)
-└── config.py        → Language mappings, device & RAG configuration
+main.py              → CLI entry point & offline pipeline orchestration
+live_transcriber.py  → Live microphone transcription & GUI backend
+├── diarizer.py        → Speaker diarization (pyannote.audio)
+├── transcriber.py     → Whisper transcription & segment alignment
+├── emotion_analyzer.py→ Wav2Vec2 vocal emotion tagger
+├── vision_extractor.py→ Scene-Aware vision context (OpenCV + Ollama)
+├── install_vision.py  → Utility script for downloading the Llava model
+├── translator.py      → NLLB-200 translation (standalone or integrated)
+├── audio_utils.py     → Shared audio utilities (duration, output paths)
+└── config.py          → Language mappings, device & RAG configuration
 
 chat.py              → Streamlit chat UI ("Chat with Transcript")
 └── rag_engine.py    → RAG pipeline: ingest, embed, query (Ollama + ChromaDB)
@@ -167,16 +173,19 @@ python rag_engine.py list
 ## Command Format
 
 ```text
-python main.py <audio_file> [source_language|auto] [model_size] [device] [target_language]
+python main.py <audio_file> [source_language] [model_size] [device] [target_language] [--emotion] [--vision] [--vision-interval X]
 ```
 
 | Argument | Default | Options |
 |---|---|---|
-| `audio_file` | *(required)* | Path to WAV file |
+| `audio_file` | *(required)* | Path to WAV or Video file (e.g. `.mp4`, `.mkv`) |
 | `source_language` | `auto` | `auto`, `zh`, `en`, `ja`, `hi`, `fr`, `de`, etc. |
 | `model_size` | `medium` | `tiny`, `base`, `small`, `medium`, `large-v3` |
 | `device` | `auto` | `auto`, `cpu`, `cuda` |
 | `target_language` | *(none)* | `en`, `hi`, `fr`, `de`, `es`, `ja`, `ko`, etc. |
+| `--emotion` | *(none)* | Enables Wav2Vec2 vocal emotion tagging |
+| `--vision` | *(none)* | Enables Scene-Aware extraction on video formats |
+| `--vision-interval` | `30` | Seconds between visual frame extractions |
 
 ## Supported Translation Languages
 
@@ -238,17 +247,18 @@ When you run `python main.py sample.wav auto medium auto hi`, the pipeline execu
 
 ## Example Workflows
 
-### Chinese audio → Chinese transcript only
+### Quick transcribing Video with Multi-Modal Context (Vision + Emotion)
 
 ```powershell
-python extract_audio.py sample.mp4
-python main.py sample.wav zh
+python main.py sample.mp4 auto medium auto en --emotion --vision --vision-interval 15
 ```
+*(Automatically extracts WAV, diarizes speakers, generates chronological `[Scene]` context using Llava, tracks emotions, and outputs translated `sample.en.txt`!)*
 
-### Chinese audio → English transcript
+### Live Microphone Transcription
 
+Launch the continuous streaming backend (detects tone in real-time):
 ```powershell
-python main.py sample.wav auto medium auto en
+python live_transcriber.py --emotion
 ```
 
 ### Chinese audio → Hindi transcript
