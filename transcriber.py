@@ -38,7 +38,8 @@ def write_segments_to_file(
     stage_label: str,
     speaker_segments: list[dict],
     emotion_analyzer=None,
-    audio_array=None
+    audio_array=None,
+    visual_contexts: list[dict] = None
 ) -> None:
     last_segment_end = [0.0]
     heartbeat_stop_event = threading.Event()
@@ -52,8 +53,22 @@ def write_segments_to_file(
 
     try:
         with open(output_file, "w", encoding="utf-8") as transcript_file:
+            visual_idx = 0
+            if visual_contexts is None:
+                visual_contexts = []
+                
             for segment in segments:
-                # Align speaker
+                # 1. Print any visual context blocks that happen BEFORE or DURING this spoken segment
+                while visual_idx < len(visual_contexts):
+                    vc = visual_contexts[visual_idx]
+                    if vc["start"] <= segment.end:
+                        line = f"[{vc['start']:.2f}s -> {vc['end']:.2f}s] [Visual System]: [Scene] {vc['text']}"
+                        transcript_file.write(line + "\n")
+                        visual_idx += 1
+                    else:
+                        break
+
+                # 2. Align speaker and print the spoken segment
                 speaker_label = align_speaker_with_segment(segment.start, segment.end, speaker_segments)
                 
                 emotion_tag = ""
@@ -73,6 +88,14 @@ def write_segments_to_file(
                 transcript_file.flush()
                 last_segment_end[0] = segment.end
                 render_progress(segment.end, total_duration)
+                
+            # 3. Print any remaining visual contexts at the very end
+            while visual_idx < len(visual_contexts):
+                vc = visual_contexts[visual_idx]
+                line = f"[{vc['start']:.2f}s -> {vc['end']:.2f}s] [Visual System]: [Scene] {vc['text']}"
+                transcript_file.write(line + "\n")
+                visual_idx += 1
+                
     except KeyboardInterrupt:
         heartbeat_stop_event.set()
         heartbeat_thread.join()
@@ -92,7 +115,8 @@ def run_whisper_pass(
     task: str,
     stage_name: str,
     speaker_segments: list[dict],
-    enable_emotion: bool = False
+    enable_emotion: bool = False,
+    visual_contexts: list[dict] = None
 ) -> str:
     print(f"\nStarting {stage_name}...")
     print(f"Writing transcript live to: {output_file}")
@@ -125,7 +149,8 @@ def run_whisper_pass(
         stage_name, 
         speaker_segments,
         emotion_analyzer=emotion_analyzer,
-        audio_array=audio_array
+        audio_array=audio_array,
+        visual_contexts=visual_contexts
     )
     if total_duration:
         render_progress(total_duration, total_duration)
