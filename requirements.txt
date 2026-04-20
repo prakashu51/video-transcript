@@ -12,3 +12,4 @@ chromadb
 streamlit
 ollama
 sounddevice
+opencv-python

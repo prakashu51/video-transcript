@@ -35,6 +35,11 @@ LIVE_MIN_SPEECH_DURATION = 0.3  # seconds
 LIVE_DEFAULT_MODEL = "base"     # Changed from small to base for much faster CPU processing
 EMOTION_MODEL = "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition"
 
+# Vision Extraction Settings
+VISION_MODEL = "llava"          # Tested best locally for visual inference
+VISION_INTERVAL_SEC = 30        # Default interval for screenshots
+VISION_PROMPT = "Describe the contents of this video frame in one concise, highly detailed sentence focusing on text, charts, or physical actions."
+
 def resolve_device_and_compute_type(device_preference: str) -> tuple[str, str, str]:
     preference = device_preference.lower()
 
