@@ -29,6 +29,21 @@ def main():
     enable_emotion = "--emotion" in sys.argv
     if enable_emotion:
         sys.argv.remove("--emotion")
+        
+    enable_vision = "--vision" in sys.argv
+    if enable_vision:
+        sys.argv.remove("--vision")
+        
+    vision_interval = None
+    if "--vision-interval" in sys.argv:
+        idx = sys.argv.index("--vision-interval")
+        try:
+            vision_interval = float(sys.argv[idx + 1])
+            sys.argv.pop(idx)  # remove flag
+            sys.argv.pop(idx)  # remove value
+        except (IndexError, ValueError):
+            print("Error: --vision-interval requires a valid number.")
+            sys.exit(1)
 
     audio_file = sys.argv[1]
     source_lang = sys.argv[2] if len(sys.argv) > 2 else "auto"
@@ -56,10 +71,33 @@ def main():
     print(f"Requested source language: {requested_language}")
     print(f"Requested target language: {requested_target}")
     print(f"Selected model: {model_size}")
+    if enable_emotion:
+        print("Emotion detection: ENABLED")
+    if enable_vision:
+        print(f"Vision Context: ENABLED (interval: {vision_interval if vision_interval else 'default'}s)")
 
+    # Phase 0: Ensure Audio Processing Compatibility
+    original_file = audio_file
+    file_ext = Path(original_file).suffix.lower()
+    
+    # If it's a video format that soundfile can't read directly
+    if file_ext in [".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv"]:
+        print(f"\n--- Phase 0: Audio Extraction ---")
+        from extract_audio import extract_audio
+        audio_file = extract_audio(original_file)
+        
     # Phase 1: Diarization
     print("\n--- Phase 1: Diarization ---")
     speaker_segments = run_diarization(audio_file)
+
+    # Phase 1.5: Vision Extraction
+    visual_contexts = []
+    if enable_vision:
+        from vision_extractor import extract_visual_context
+        if vision_interval:
+            visual_contexts = extract_visual_context(original_file, interval_sec=vision_interval)
+        else:
+            visual_contexts = extract_visual_context(original_file)
 
     # Phase 2: Transcription
     print("\n--- Phase 2: Transcription ---")
@@ -75,6 +113,7 @@ def main():
         stage_name="transcription",
         speaker_segments=speaker_segments,
         enable_emotion=enable_emotion,
+        visual_contexts=visual_contexts,
     )
 
     if not target_lang:
@@ -110,6 +149,7 @@ def main():
             stage_name="English translation",
             speaker_segments=speaker_segments,
             enable_emotion=enable_emotion,
+            visual_contexts=visual_contexts,
         )
         if normalized_target == "en":
             total_elapsed = time.time() - start_time
